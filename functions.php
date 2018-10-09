@@ -9,6 +9,7 @@ $urls = array(
 );
 $default_color = 'bg-green';
 $colors = array(
+  '#regel' => 'border',
   '#allianz' => 'bg-orange',
   '#sonder' => 'bg-blue',
   '#kinder' => 'bg-red',
@@ -36,34 +37,23 @@ function cal_import() {
 
       if($line === 'BEGIN:VEVENT')
         $item = array();
-      elseif(substr($line, 0, 8) === 'DTSTART:')
-        $item['start'] = substr($line, 8);
-      elseif(substr($line, 0, 19) === 'DTSTART;VALUE=DATE:')
-        $item['start'] = substr($line, 19);
-      elseif(substr($line, 0, 6) === 'DTEND:')
-        $item['end'] = substr($line, 6);
-      elseif(substr($line, 0, 17) === 'DTEND;VALUE=DATE:')
-        $item['end'] = substr($line, 17);
-      elseif(substr($line, 0, 6) === 'RRULE:') {
-        foreach(explode(';', substr($line, 6)) as $elem) {
-          if(substr($elem, 0, 5) === 'FREQ=')
-            $item['freq'] = substr($elem, 5);
-          elseif(substr($elem, 0, 6) === 'COUNT=')
-            $item['count'] = substr($elem, 6);
-          elseif(substr($elem, 0, 9) === 'INTERVAL=')
-            $item['interval'] = substr($elem, 9);
-          elseif(substr($elem, 0, 8) === 'BYMONTH=')
-            $item['bymonth'] = substr($elem, 8);
-          elseif(substr($elem, 0, 6) === 'BYDAY=')
-            $item['byday'] = substr($elem, 6);
-        }
+      elseif(substr($line, 0, 7) === 'DTSTART')
+        $item['start'] = substr(strstr($line, ':'), 1);
+      elseif(substr($line, 0, 5) === 'DTEND')
+        $item['end'] = substr(strstr($line, ':'), 1);
+      elseif(substr($line, 0, 6) === 'RRULE:')
+        $item['rrule'] = substr($line, 6);
+      elseif(substr($line, 0, 6) === 'EXDATE') {
+        $item['exdate'] = array();
+        foreach(explode(',', substr(strstr($line, ':'), 1)) as $i)
+          $item['exdate'][] = substr($i, 0, 8);
       } elseif(substr($line, 0, 8) === 'SUMMARY:')
         $item['summary'] = substr($line, 8);
       elseif(substr($line, 0, 12) === 'DESCRIPTION:' && strlen($line) > 12)
         $item['description'] = substr($line, 12);
       elseif($line === 'END:VEVENT' && array_key_exists('start', $item) && array_key_exists('end', $item)) {
 
-        # oneday
+        # one day
         if(substr($item['start'], 0, 8) === substr($item['end'], 0, 8)) {
           $date = substr($item['start'], 0, 8);
           if(!array_key_exists($date, $dates))
@@ -72,10 +62,13 @@ function cal_import() {
             $item['start'] = substr($item['start'], 9, 2) . ':' . substr($item['start'], 11, 2);
           else
             $item['start'] = '';
-          if($url[1])
-            $dates[$date][] = $item;
-          else
-            $marks[$i] = true;
+          foreach(cal_rrule($date, @$item['rrule']) as $i)
+            if(!in_array($i, $item['exdate'])) {
+              if($url[1])
+                $dates[$i][] = $item;
+              else
+                $marks[$i] = true;
+            }
         }
 
         # range
@@ -96,6 +89,51 @@ function cal_import() {
   }
 }
 
+function cal_rrule($date, $rrule) {
+  global $wdays;
+
+  $date = strtotime($date);
+  $year = idate('Y', $date) + 1;
+  $dates = array();
+
+  # read params
+  foreach(explode(';', $rrule) as $elem) {
+    if(substr($elem, 0, 5) === 'FREQ=')
+      $freq = substr($elem, 5);
+    elseif(substr($elem, 0, 6) === 'COUNT=')
+      $count = intval(substr($elem, 6));
+    elseif(substr($elem, 0, 9) === 'INTERVAL=')
+      $interval = intval(substr($elem, 9));
+    elseif(substr($elem, 0, 8) === 'BYMONTH=')
+      $bymonth = substr($elem, 8);
+    elseif(substr($elem, 0, 6) === 'BYDAY=')
+      $byday = substr($elem, 6);
+    elseif(substr($elem, 0, 5) === 'WKST=')
+      $wkst = substr($elem, 5);
+  }
+  if(!isset($interval))
+    $interval = 1;
+
+  # calc dates
+  $i = 0;
+  while(idate('Y', $date) <= $year && (!isset($count) || $i++ <= $count)) {
+    $dates[] = strftime('%Y%m%d', $date);
+    switch($freq) {
+      case 'MONTHLY':
+        $date = strtotime('+' . $interval . 'month', $date);
+        break;
+      case 'WEEKLY':
+        $date = strtotime('+' . $interval . 'week', $date);
+        break;
+      case 'DAILY':
+        $date = strtotime('+' . $interval . 'day', $date);
+        break;
+    }
+  }
+
+  return $dates;
+}
+
 function cal_color($object) {
   global $default_color, $colors;
 
@@ -107,11 +145,14 @@ function cal_color($object) {
 
   # color of item
   elseif(is_array($object) && array_key_exists('description', $object)) {
+    $color = '';
     foreach($colors as $key => $value) {
       if(strpos($object['description'], $key) !== false) {
-        return $value;
+        $color .= $value . ' ';
       }
     }
+    if($color)
+      return $color;
   }
 
   return $default_color;
