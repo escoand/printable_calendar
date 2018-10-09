@@ -11,11 +11,12 @@ $urls = array(
 );
 $default_color = 'bg-green';
 $colors = array(
-  '#regel' => 'border',
   '#allianz' => 'bg-orange',
   '#sonder' => 'bg-blue',
   '#kinder' => 'bg-red',
-  '#advent' => 'bg-violet',
+  '#jugend' => 'bg-pink',
+  '#senioren' => 'bg-violet',
+  '#advent' => 'bg-blue',
   'www.schulferien.org' => 'bg-gray',
 );
 
@@ -38,17 +39,19 @@ function cal_import() {
 
     $event = $data->getFirstEvent();
     while($event !== null) {
-      $start = $event->data['DTSTART']->value[0];
-      $min = strtotime($start);
-      $max = null; #strtotime('2019-06-01');
+      $min = strtotime($event->data['DTSTART']->value[0]);
+      $max = null; #strtotime($event->data['DTEND']->value[0]);
       foreach(cal_dates($event->data, $min, $max) as $date) {
         if($url[1] === true) {
           if(!array_key_exists($date, $dates))
             $dates[$date] = array();
+          $tz = $event->data['DTSTART']->getParameters()['tzid'];
+          date_default_timezone_set($tz ? $tz : 'Europe/Berlin');
           $dates[$date][] = array(
-             'start' => strlen($start) > 8 ? substr($start, 9, 2) . ':' . substr($start, 11, 2) : '',
+             'start' => idate('H', $min) > 0 ? date('H:i', $min) : '',
              'summary' => $event->data['SUMMARY']->value[0],
              'description' => $event->data['DESCRIPTION']->value[0],
+             'location' => $event->data['LOCATION']->value[0],
           );
         } else
           $marks[$date] = true;
@@ -68,7 +71,14 @@ function cal_dates($event, $min = 0, $max = null) {
       $dates[] = $date++;
      } while($date < $end);
   } else {
-    $rrule = new ZCRecurringDate($event['RRULE']->value[0], $min, $event['EXDATE']->value);
+    $exdates = array();
+    foreach($event['EXDATE']->value as $date)
+      $exdates[] = ZDateHelper::fromiCaltoUnixDateTime($date) - 60 * 60;
+    $rrule = new ZCRecurringDate(
+      $event['RRULE']->value[0],
+      $min,
+      $exdates
+    );
     foreach($rrule->getDates($max) as $date)
       $dates[] = strftime('%Y%m%d', $date);
   }
@@ -179,8 +189,8 @@ function cal_year($year) {
           print strftime('<span class="week">%V</span>', $date);
         if(array_key_exists($id, $dates)) {
           foreach($dates[$id] as $item) {
-            printf('<div class="event %s" title="%s"><i>%s</i> %s</div>',
-              cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['summary']);
+            printf('<div class="event %s" title="%s"><i>%s %s</i> %s</div>',
+              cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
           }
         }
         print "</div></td>";
