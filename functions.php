@@ -3,6 +3,8 @@
 #ini_set('display_startup_errors', 1);
 #error_reporting(E_ALL);
 
+require_once('zapcallib/zapcallib.php');
+
 $urls = array(
   array('https://calendar.google.com/calendar/ical/cj17aoakb3pl0o2g53n0haoau0%40group.calendar.google.com/public/basic.ics', false), # feiertage
   array('https://calendar.google.com/calendar/ical/11tbjm5vddo9a7h4330t2hhqic%40group.calendar.google.com/public/basic.ics', true), # 2019
@@ -31,109 +33,49 @@ function cal_import() {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
-    $content = curl_exec($ch);
-    $line = strtok($content, $separator);
-    while($line !== false) {
+    $data = new ZCiCal(curl_exec($ch));
+    curl_close($ch);
 
-      if($line === 'BEGIN:VEVENT')
-        $item = array();
-      elseif(substr($line, 0, 7) === 'DTSTART')
-        $item['start'] = substr(strstr($line, ':'), 1);
-      elseif(substr($line, 0, 5) === 'DTEND')
-        $item['end'] = substr(strstr($line, ':'), 1);
-      elseif(substr($line, 0, 6) === 'RRULE:')
-        $item['rrule'] = substr($line, 6);
-      elseif(substr($line, 0, 6) === 'EXDATE') {
-        $item['exdate'] = array();
-        foreach(explode(',', substr(strstr($line, ':'), 1)) as $i)
-          $item['exdate'][] = substr($i, 0, 8);
-      } elseif(substr($line, 0, 8) === 'SUMMARY:')
-        $item['summary'] = substr($line, 8);
-      elseif(substr($line, 0, 12) === 'DESCRIPTION:' && strlen($line) > 12)
-        $item['description'] = substr($line, 12);
-      elseif($line === 'END:VEVENT' && array_key_exists('start', $item) && array_key_exists('end', $item)) {
-
-        # one day
-        if(substr($item['start'], 0, 8) === substr($item['end'], 0, 8)) {
-          $date = substr($item['start'], 0, 8);
+    $event = $data->getFirstEvent();
+    while($event !== null) {
+      $start = $event->data['DTSTART']->value[0];
+      $min = strtotime($start);
+      $max = null; #strtotime('2019-06-01');
+      foreach(cal_dates($event->data, $min, $max) as $date) {
+        if($url[1] === true) {
           if(!array_key_exists($date, $dates))
             $dates[$date] = array();
-          if(strlen($item['start']) > 8)
-            $item['start'] = substr($item['start'], 9, 2) . ':' . substr($item['start'], 11, 2);
-          else
-            $item['start'] = '';
-          foreach(cal_rrule($date, @$item['rrule']) as $i)
-            if(!in_array($i, $item['exdate'])) {
-              if($url[1])
-                $dates[$i][] = $item;
-              else
-                $marks[$i] = true;
-            }
-        }
-
-        # range
-        elseif(substr($item['start'], 0, 8) < substr($item['end'], 0, 8)) {
-          for($i = substr($item['start'], 0, 8); $i < substr($item['end'], 0, 8); $i++) {
-            $item['start'] = '';
-            if($url[1])
-              $dates[$i][] = $item;
-            else
-              $marks[$i] = true;
-          }
-        }
+          $dates[$date][] = array(
+             'start' => strlen($start) > 8 ? substr($start, 9, 2) . ':' . substr($start, 11, 2) : '',
+             'summary' => $event->data['SUMMARY']->value[0],
+             'description' => $event->data['DESCRIPTION']->value[0],
+          );
+        } else
+          $marks[$date] = true;
       }
-
-      $line = strtok($separator);
+      $event = $data->getNextEvent($event);
     }
-    curl_close($ch);
   }
 }
 
-function cal_rrule($date, $rrule) {
-  global $wdays;
-
-  $date = strtotime($date);
-  $year = idate('Y', $date) + 1;
+function cal_dates($event, $min = 0, $max = null) {
   $dates = array();
 
-  # read params
-  foreach(explode(';', $rrule) as $elem) {
-    if(substr($elem, 0, 5) === 'FREQ=')
-      $freq = substr($elem, 5);
-    elseif(substr($elem, 0, 6) === 'COUNT=')
-      $count = intval(substr($elem, 6));
-    elseif(substr($elem, 0, 9) === 'INTERVAL=')
-      $interval = intval(substr($elem, 9));
-    elseif(substr($elem, 0, 8) === 'BYMONTH=')
-      $bymonth = substr($elem, 8);
-    elseif(substr($elem, 0, 6) === 'BYDAY=')
-      $byday = substr($elem, 6);
-    elseif(substr($elem, 0, 5) === 'WKST=')
-      $wkst = substr($elem, 5);
-  }
-  if(!isset($interval))
-    $interval = 1;
-
-  # calc dates
-  $i = 0;
-  while(idate('Y', $date) <= $year && (!isset($count) || $i++ <= $count)) {
-    $dates[] = strftime('%Y%m%d', $date);
-    switch($freq) {
-      case 'MONTHLY':
-        $date = strtotime('+' . $interval . 'month', $date);
-        break;
-      case 'WEEKLY':
-        $date = strtotime('+' . $interval . 'week', $date);
-        break;
-      case 'DAILY':
-        $date = strtotime('+' . $interval . 'day', $date);
-        break;
-    }
+  if(!array_key_exists('RRULE', $event)) {
+    $date = substr($event['DTSTART']->value[0], 0, 8);
+    $end = substr($event['DTEND']->value[0], 0, 8);
+    do {
+      $dates[] = $date++;
+     } while($date < $end);
+  } else {
+    $rrule = new ZCRecurringDate($event['RRULE']->value[0], $min, $event['EXDATE']->value);
+    foreach($rrule->getDates($max) as $date)
+      $dates[] = strftime('%Y%m%d', $date);
   }
 
   return $dates;
 }
-
+  
 function cal_color($object) {
   global $default_color, $colors;
 
