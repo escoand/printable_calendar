@@ -2,14 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css" />
+<link href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet" />
+<title>Jahresplan &#8211; Luther­kirch­gemeinde</title>
 </head>
 <body>
 <table>
 <?php
   include 'functions.php';
-  cal_import();
-  cal_year(2019);
+  $year = implode('', array_keys($_GET));
+  if(!is_numeric($year) || $year < 2000 || $year > 2100)
+    $year = idate('Y');
+  printf('<tr><th class="head" colspan="24">%s</th></tr>', $year);
+  cal_import($year);
+  cal_year($year);
 ?>
 </table>
 <?php

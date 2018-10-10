@@ -2,22 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<link rel="stylesheet" href="styles.css">
-<style>
-  td { min-width: 100px; }
-  .head { padding-top: 20px; text-align: left; }
-</style>
+<link rel="stylesheet" href="styles.css" />
+<link href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet" />
+<title>Monatsplan &#8211; Luther­kirch­gemeinde</title>
 </head>
 <body>
-<table>
+<table class="month">
 <?php
   include 'functions.php';
-  $nextmonth = strtotime('+1 month');
-  foreach($urls as &$url)
-    $url[1] = true;
-  cal_import();
-  cal_month(strftime('%Y'), strftime('%m'));
-  cal_month(strftime('%Y', $nextmonth), strftime('%m', $nextmonth));
+  $date = implode('-', array_keys($_GET)) . '-01';
+  $thismonth = strtotime($date);
+  $nextmonth = strtotime('+1 month', $thismonth);
+  cal_import(idate('Y', $nextmonth));
+  cal_month(idate('Y', $thismonth), idate('m', $thismonth));
+  cal_month(idate('Y', $nextmonth), idate('m', $nextmonth));
 ?>
 </table>
 </body>

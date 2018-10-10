@@ -1,0 +1,34 @@
+* { font-family: 'Noto Sans',sans-serif; }
+table { border-collapse: collapse; color: #333; font-size: 12px; width: 100%; }
+th { padding: 2px; vertical-align: top; width: 1px; }
+td { height: 1px; padding: 0; vertical-align: top; }
+td > div { position: relative; }
+
+.head { font-size: 15pt; }
+.week { color: #ddd; font-size: 15pt; font-weight: bold; padding: 0 .1em; position: absolute; right: 0; z-index: -1; }
+.day { border: 1px solid #e5e5e5; border-right: none; padding: 3px; }
+.day.mark { background: #9d9d9d; }
+.weekend { color: #9d9d9d; }
+.weekend.mark { color: white; }
+.mark { background: #9d9d9d; color: White; }
+.events { border: 1px solid #e5e5e5; border-left: none; }
+.event { border-radius: 2px; color: white; hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; -webkit-hyphens: auto; margin: 2px; padding: 2px; }
+.event:not(:last-child) { margin-bottom: 1px; }
+
+.month { max-width: 1024px; }
+.month .head { text-align: left; }
+.month tr:not(:first-child) .head { padding-top: 20px; }
+
+.event.bg-gray { background: Gray; }
+.event.bg-red { background: #ff4040; }
+.event.bg-orange { background: #ffbb3b; }
+.event.bg-blue { background: #00a9ff; }
+.event.bg-green { background: #bbdc00; }
+.event.bg-violet { background: #9e5fff; }
+.event.bg-pink { background: #ff5583; }
+
+@media print {
+  * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .day, .events { border-color: #9d9d9d; }
+  .week, .weekend { color: #9d9d9d; font-weight: bolder; }
+}

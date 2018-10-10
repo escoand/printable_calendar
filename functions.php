@@ -15,8 +15,7 @@ $colors = array(
   '#sonder' => 'bg-blue',
   '#kinder' => 'bg-red',
   '#jugend' => 'bg-pink',
-  '#senioren' => 'bg-violet',
-  '#advent' => 'bg-blue',
+  '#gruppe' => 'bg-violet',
   'www.schulferien.org' => 'bg-gray',
 );
 
@@ -24,8 +23,9 @@ $dates = array();
 $marks = array();
 setlocale(LC_ALL, 'de_DE');
 
-function cal_import() {
+function cal_import($year = null) {
   global $urls, $dates, $marks;
+  $max = mktime(0, 0, 0, 1, 1, $year + 1);
   $separator = "\r\n";
 
   foreach($urls as $url) {
@@ -40,7 +40,6 @@ function cal_import() {
     $event = $data->getFirstEvent();
     while($event !== null) {
       $min = strtotime($event->data['DTSTART']->value[0]);
-      $max = null; #strtotime($event->data['DTEND']->value[0]);
       foreach(cal_dates($event->data, $min, $max) as $date) {
         if($url[1] === true) {
           if(!array_key_exists($date, $dates))
@@ -118,7 +117,7 @@ function cal_month($year, $month) {
   $firstday = mktime(0, 0, 0, $month, 1, $year);
   $offset = 1 - strftime('%u', $firstday);
   print '<tr>';
-  printf('<th colspan="7" class="head">%s</th>', strftime('%B %Y', $firstday));
+  printf('<th colspan="7" class="head">%s</th>', utf8_encode(strftime('%B %Y', $firstday)));
   print '</tr><tr>';
   for($day = 1 + $offset; $day <= 31; $day++) {
     $date = mktime(0, 0, 0, $month, $day, $year);
@@ -211,8 +210,9 @@ function cal_legend() {
 
   printf('<small><b>Termine der Lutherkirchgemeinde (Stand: %s)</b>; F&auml;rbung anhand Termin-Beschreibung:',
     strftime('%d.%m.%Y'));
-  printf(' <span class="%s">&nbsp;Standard&nbsp;</span>', $default_color);
+  printf(' <span class="event %s">&nbsp;Standard&nbsp;</span>', $default_color);
   foreach($colors as $string => $color)
-    printf(' <span class="%s">&nbsp;%s&nbsp;</span>', $color, $string);
+    printf(' <span class="event %s">&nbsp;%s&nbsp;</span>', $color, $string);
   print '</small>';
 }
+
