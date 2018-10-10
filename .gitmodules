@@ -1,0 +1,3 @@
+[submodule "zapcallib"]
+	path = zapcallib
+	url = git@github.com:ZContent/icalendar.git
