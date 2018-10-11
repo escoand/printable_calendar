@@ -6,8 +6,8 @@
 require_once('zapcallib/zapcallib.php');
 
 $urls = array(
-  array('https://calendar.google.com/calendar/ical/cj17aoakb3pl0o2g53n0haoau0%40group.calendar.google.com/public/basic.ics', false), # feiertage
-  array('https://calendar.google.com/calendar/ical/11tbjm5vddo9a7h4330t2hhqic%40group.calendar.google.com/public/basic.ics', true), # 2019
+  array('http://cloud.ec-hasslau.de/remote.php/dav/public-calendars/fdsHQXEQgZRx2df4?export', false), # feiertage
+  array('http://cloud.ec-hasslau.de/remote.php/dav/public-calendars/CSmzMCQMm7eeZaqF?export', true), # 2019
 );
 
 $dates = array();
@@ -28,27 +28,36 @@ function cal_import($year = null) {
     $data = new ZCiCal(curl_exec($ch));
     curl_close($ch);
 
+    $cancelled = array();
     $event = $data->getFirstEvent();
     while($event !== null) {
       $min = strtotime($event->data['DTSTART']->value[0]);
       foreach(cal_dates($event->data, $min, $max) as $date) {
+        $id = $date; #strftime('%Y%m%d', $event->data['DTSTART']->value[0]);
         if($url[1] === true) {
-          if(!array_key_exists($date, $dates))
-            $dates[$date] = array();
+          if($event->data['STATUS']->value[0] === 'CANCELLED') {
+            $cancelled[$id][] = $event->data['UID']->value[0];
+            continue;
+          }
           $tz = $event->data['DTSTART']->getParameters()['tzid'];
           date_default_timezone_set($tz ? $tz : 'Europe/Berlin');
-          $dates[$date][] = array(
+          $dates[$id][$event->data['UID']->value[0]] = array(
              'start' => idate('H', $min) > 0 ? date('H:i', $min) : '',
              'summary' => $event->data['SUMMARY']->value[0],
-             'description' => $event->data['DESCRIPTION']->value[0],
+             'description' => $event->data['DESCRIPTION']->value[0] . ' (' . $event->data['UID']->value[0] . ')',
              'location' => $event->data['LOCATION']->value[0],
           );
-          usort($dates[$date], 'cal_sort');
+          uasort($dates[$id], 'cal_sort');
         } else
-          $marks[$date] = true;
+          $marks[$id] = true;
       }
       $event = $data->getNextEvent($event);
     }
+
+    # cancelled
+    foreach($cancelled as $date => $ids)
+      foreach($ids as $id)
+        unset($dates[$date][$id]);
   }
 }
 
@@ -98,55 +107,6 @@ function cal_sort($event1, $event2) {
   return strcmp($event1['start'], $event2['start']);
 }
 
-function cal_month($year, $month) {
-  global $dates, $marks;
-  $year = intval($year);
-  $month = intval($month);
-
-  $firstday = mktime(0, 0, 0, $month, 1, $year);
-  $offset = 1 - strftime('%u', $firstday);
-  print '<tr>';
-  printf('<th colspan="7" class="head">%s</th>', utf8_encode(strftime('%B %Y', $firstday)));
-  print '</tr><tr>';
-  for($day = 1 + $offset; $day <= 31; $day++) {
-    $date = mktime(0, 0, 0, $month, $day, $year);
-    $id = strftime('%Y%m%d', $date);
-    $class = cal_color($date);
-
-    # day exists
-    if(idate('m', $date) === $month) {
-
-      # new week
-      if(idate('w', $date) === 1 && idate('d', $date) !== 1)
-        print '</tr><tr>';
-
-      # mark day
-      $mark = array_key_exists($id, $marks) ? 'mark' : '';
-          
-      printf('<th class="day %s %s">%s</th>', $mark, $class, substr(strftime('%d %a', $date), 0, 5));
-      printf('<td class="events %s" width="100"><div>', $class);
-      if(idate('w', $date) === 1)
-        print strftime('<span class="week">%V</span>', $date);
-      if(array_key_exists($id, $dates)) {
-        foreach($dates[$id] as $item) {
-
-          # event
-          printf('<div class="event %s" title="%s"><i>%s</i> %s</div>',
-            cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['summary']);
-        }
-      }
-      print "</div></td>";
-    }
-
-    # not exists
-    else {
-      print '<td colspan="2"></td>';
-    }
-
-  }
-  print "</tr>";
-}
-
 function cal_year($year) {
   global $dates, $marks;
 
@@ -177,7 +137,7 @@ function cal_year($year) {
           print strftime('<span class="week">%V</span>', $date);
         if(array_key_exists($id, $dates)) {
           foreach($dates[$id] as $item) {
-            printf('<div class="event %s" title="%s"><i>%s %s</i> %s</div>',
+            printf('<div class="event %s" title="%s"><span class="meta">%s %s</span>%s</div>',
               cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
           }
         }
@@ -192,6 +152,89 @@ function cal_year($year) {
     }
     print "</tr>";
   }
+}
+
+function cal_month($year, $month) {
+  global $dates, $marks;
+  $year = intval($year);
+  $month = intval($month);
+  $today = strftime('%Y%m%d');
+
+  $firstday = mktime(0, 0, 0, $month, 1, $year);
+  $offset = 1 - strftime('%u', $firstday);
+  print '<tr>';
+  printf('<th colspan="7" class="head">%s</th>', utf8_encode(strftime('%B %Y', $firstday)));
+  print '</tr><tr>';
+  for($day = 1 + $offset; $day <= 31; $day++) {
+    $date = mktime(0, 0, 0, $month, $day, $year);
+    $id = strftime('%Y%m%d', $date);
+    $class = cal_color($date) . ($id == $today ? ' today' : '');
+
+    # day exists
+    if(idate('m', $date) === $month) {
+
+      # new week
+      if(idate('w', $date) === 1 && idate('d', $date) !== 1)
+        print '</tr><tr>';
+
+      # mark day
+      $mark = array_key_exists($id, $marks) ? 'mark' : '';
+          
+      printf('<th class="day %s %s">%s</th>', $mark, $class, substr(strftime('%d %a', $date), 0, 5));
+      printf('<td class="events %s" width="100"><div>', $class);
+      if(idate('w', $date) === 1)
+        print strftime('<span class="week">%V</span>', $date);
+      if(array_key_exists($id, $dates)) {
+        foreach($dates[$id] as $item) {
+            printf('<div class="event %s" title="%s"><span class="meta">%s %s</span>%s</div>',
+              cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
+        }
+      }
+      print "</div></td>";
+    }
+
+    # not exists
+    else {
+      print '<td colspan="2"></td>';
+    }
+
+  }
+  print "</tr>";
+}
+
+function cal_stream() {
+  global $dates, $marks;
+  $min = strtotime('-1 week');
+  $min = strtotime('-' . (7 - idate('w', $min)) . ' day', $min);
+  $max = strtotime('+4 week');
+  $max = strtotime('+' . (7 - idate('w', $max)) . ' day', $max);
+  $today = strftime('%Y%m%d');
+  $date = $min;
+
+  print '<tr>';
+  while($date <= $max) {
+    $id = strftime('%Y%m%d', $date);
+    $class = cal_color($date) . ($id == $today ? ' today' : '');
+
+    # new week
+    if($date !== $min && idate('w', $date) === 1)
+      print '</tr><tr>';
+
+    # mark day
+    $mark = array_key_exists($id, $marks) ? 'mark' : '';
+          
+    printf('<th class="day %s %s">%s</th>', $mark, $class, substr(strftime('%d %a', $date), 0, 5));
+    printf('<td class="events %s" width="100"><div>', $class);
+    if(idate('w', $date) === 1)
+      print strftime('<span class="week">%V</span>', $date);
+    foreach($dates[$id] as $item) {
+      printf('<div class="event %s" title="%s"><span class="meta">%s %s</span>%s</div>',
+        cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
+    }
+    print "</div></td>";
+    $date = strtotime('+1 day', $date);
+  }
+  print "</tr>";
 }
 
 function cal_legend() {
