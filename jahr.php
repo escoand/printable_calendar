@@ -2,11 +2,12 @@
 <html lang="de">
 <head>
 <meta charset="utf-8" />
-<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="common.css" />
+<link rel="stylesheet" href="events.css" />
 <link href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet" />
-<title>Jahresplan &#8211; Luther­kirch­gemeinde</title>
+<title>Jahresplan &#8211; Lutherkirchgemeinde</title>
 </head>
-<body>
+<body class="year">
 <table>
 <?php
   include 'functions.php';

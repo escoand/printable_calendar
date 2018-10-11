@@ -9,15 +9,6 @@ $urls = array(
   array('https://calendar.google.com/calendar/ical/cj17aoakb3pl0o2g53n0haoau0%40group.calendar.google.com/public/basic.ics', false), # feiertage
   array('https://calendar.google.com/calendar/ical/11tbjm5vddo9a7h4330t2hhqic%40group.calendar.google.com/public/basic.ics', true), # 2019
 );
-$default_color = 'bg-green';
-$colors = array(
-  '#allianz' => 'bg-orange',
-  '#sonder' => 'bg-blue',
-  '#kinder' => 'bg-red',
-  '#jugend' => 'bg-pink',
-  '#gruppe' => 'bg-violet',
-  'www.schulferien.org' => 'bg-gray',
-);
 
 $dates = array();
 $marks = array();
@@ -52,6 +43,7 @@ function cal_import($year = null) {
              'description' => $event->data['DESCRIPTION']->value[0],
              'location' => $event->data['LOCATION']->value[0],
           );
+          usort($dates[$date], 'cal_sort');
         } else
           $marks[$date] = true;
       }
@@ -86,7 +78,6 @@ function cal_dates($event, $min = 0, $max = null) {
 }
   
 function cal_color($object) {
-  global $default_color, $colors;
 
   # color of date
   if(is_integer($object)) {
@@ -96,17 +87,15 @@ function cal_color($object) {
 
   # color of item
   elseif(is_array($object) && array_key_exists('description', $object)) {
-    $color = '';
-    foreach($colors as $key => $value) {
-      if(strpos($object['description'], $key) !== false) {
-        $color .= $value . ' ';
-      }
-    }
-    if($color)
-      return $color;
+    preg_match_all('/#[a-zA-Z0-9]+/', $object['description'], $matches);
+    return implode(' ', $matches[0]);
   }
 
-  return $default_color;
+  return '';
+}
+
+function cal_sort($event1, $event2) {
+  return strcmp($event1['start'], $event2['start']);
 }
 
 function cal_month($year, $month) {
@@ -206,13 +195,22 @@ function cal_year($year) {
 }
 
 function cal_legend() {
-  global $colors, $default_color;
+  global $dates;
 
-  printf('<small><b>Termine der Lutherkirchgemeinde (Stand: %s)</b>; F&auml;rbung anhand Termin-Beschreibung:',
+  $colors = array();
+  foreach($dates as $date)
+    foreach($date as $event)
+      $colors = array_merge($colors, explode(' ', cal_color($event)));
+  $colors = array_unique($colors);
+  sort($colors);
+  if($colors[0] == '')
+    array_shift($colors);
+
+  printf('<small><b>Termine der Lutherkirchgemeinde (Stand: %s)</b>; F&auml;rbung anhand Termin-Beschreibung: ',
     strftime('%d.%m.%Y'));
-  printf(' <span class="event %s">&nbsp;Standard&nbsp;</span>', $default_color);
-  foreach($colors as $string => $color)
-    printf(' <span class="event %s">&nbsp;%s&nbsp;</span>', $color, $string);
+  printf('<span class="event">Standard</span> ');
+  foreach($colors as $tag)
+    printf('<span class="event %s">%s</span> ', $tag, $tag);
   print '</small>';
 }
 

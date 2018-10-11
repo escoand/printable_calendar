@@ -1,0 +1,22 @@
+* { font-family: 'Noto Sans',sans-serif; }
+table { border-collapse: collapse; color: #333; font-size: 12px; width: 100%; }
+th { padding: 2px; vertical-align: top; width: 1px; }
+td { height: 1px; padding: 0; vertical-align: top; }
+td > div { position: relative; }
+
+.head { font-size: 15pt; }
+.week { color: #ddd; font-size: 15pt; font-weight: bold; padding: 0 .1em; position: absolute; right: 0; z-index: -1; }
+.day { border: 1px solid #e5e5e5; border-right: none; padding: 3px; }
+.weekend { color: #b00; }
+.events { border: 1px solid #e5e5e5; border-left: none; min-width: 100px; }
+.event { border-radius: 2px; hyphens: auto; -moz-hyphens: auto; -ms-hyphens: auto; -webkit-hyphens: auto; margin: 2px; padding: 2px; }
+
+.month { margin: auto; max-width: 1024px; }
+.month .head { text-align: left; }
+.month tr:not(:first-child) .head { padding-top: 20px; }
+
+@media print {
+  * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .day, .events { border-color: #9d9d9d; }
+  .week { color: #9d9d9d; font-weight: bolder; }
+}

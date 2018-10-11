@@ -1,0 +1,11 @@
+.day.mark { background: #9d9d9d; }
+.day.mark:not(.weekend) { color: white; }
+
+.event { background: #bbdc00; color: white; }
+.event.\#sonder { background: #00a9ff; }
+.event.\#kinder { background: #ff4040; }
+.event.\#jugend { background: #ff5583; }
+.event.\#gruppe { background: #9e5fff; }
+.event.\#allianz { background: #ffbb3b; }
+
+.year .event.\#regel { display: none; }
