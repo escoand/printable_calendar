@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css?family=Noto+Sans" rel="stylesheet" />
 <title>Terminplan &#8211; Lutherkirchgemeinde</title>
 </head>
-<body class="month">
+<body class="stream">
 <table>
 <?php
   include 'functions.php';

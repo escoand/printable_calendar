@@ -72,8 +72,9 @@ function cal_dates($event, $min = 0, $max = null) {
      } while($date < $end);
   } else {
     $exdates = array();
-    foreach($event['EXDATE']->value as $date)
-      $exdates[] = ZDateHelper::fromiCaltoUnixDateTime($date) - 60 * 60;
+    if(array_key_exists('EXDATE', $event))
+      foreach($event['EXDATE']->value as $date)
+        $exdates[] = ZDateHelper::fromiCaltoUnixDateTime($date) - 60 * 60;
     $rrule = new ZCRecurringDate(
       $event['RRULE']->value[0],
       $min,
@@ -204,14 +205,15 @@ function cal_month($year, $month) {
 
 function cal_stream() {
   global $dates, $marks;
-  $min = strtotime('-1 week');
-  $min = strtotime('-' . (7 - idate('w', $min)) . ' day', $min);
-  $max = strtotime('+4 week');
-  $max = strtotime('+' . (7 - idate('w', $max)) . ' day', $max);
+  $min = strtotime('last Monday');
+  $max = strtotime('next Sunday +3 week');
+  #$max = strtotime('+' . (7 - idate('w', $max)) . ' day', $max);
   $today = strftime('%Y%m%d');
   $date = $min;
 
   print '<tr>';
+  print '<th class="head">Mo</th><th class="head">Di</th><th class="head">Mi</th><th class="head">Do</th><th class="head">Fr</th><th class="head weekend">Sa</th><th class="head weekend">So</th>';
+  print '</tr><tr>';
   while($date <= $max) {
     $id = strftime('%Y%m%d', $date);
     $class = cal_color($date) . ($id == $today ? ' today' : '');
@@ -223,14 +225,16 @@ function cal_stream() {
     # mark day
     $mark = array_key_exists($id, $marks) ? 'mark' : '';
           
-    printf('<th class="day %s %s">%s</th>', $mark, $class, substr(strftime('%d %a', $date), 0, 5));
+    #printf('<th class="day %s %s">%s</th>', $mark, $class, substr(strftime('%d', $date), 0, 5));
     printf('<td class="events %s" width="100"><div>', $class);
     if(idate('w', $date) === 1)
       print strftime('<span class="week">%V</span>', $date);
-    foreach($dates[$id] as $item) {
-      printf('<div class="event %s" title="%s"><span class="meta">%s %s</span>%s</div>',
-        cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
-    }
+    printf('<div class="day %s %s">%s</div>', null, $class, strftime('%d', $date));
+    if(array_key_exists($id, $dates))
+      foreach($dates[$id] as $item) {
+        printf('<div class="event %s" title="%s"><span class="meta">%s %s</span>%s</div>',
+          cal_color($item), array_key_exists('description', $item) ? $item['description'] : '', $item['start'], $item['location'], $item['summary']);
+      }
     print "</div></td>";
     $date = strtotime('+1 day', $date);
   }
